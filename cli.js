@@ -1,12 +1,18 @@
 #!/usr/bin/env node
 
 import * as cheerio from "cheerio"
+import {exec} from "child_process"
+import {promisify} from "util"
 import fs from "fs"
 var args = process.argv.slice(2)
+var BASE_URL = args[args.length-1];
+console.log(args)
 
 function log(msg) {
     console.log(msg + "...")
 }
+
+const execPromise = promisify(exec)
 
 // Okay first thing i want to do is when i run the command i want to display a list of options of commands
 //I want to support help command
@@ -23,22 +29,27 @@ for (const [index, cmd] of args.entries()) {
             console.log(`Usage: sourcemap [command] [options...]
     
     Commands:
-        inspect <url> Inspect a url for sourcemaps`)
+        inspect <url> Inspect a url for sourcemaps using curl`)
             break;
         case "--manual":
             console.log("Help Menu")
             break;
         case "inspect":
-            let url;
-            let html;
+            let html, url;
+            
             try {
-                url = URL.parse(args[index + 1])
-                if (!url) throw Error()
+                url = URL.parse(args[args.length-1])
+                if (!url) throw Error("ERROR PARSING URL")
                 html = await inspect(url)
-                parseIndexHTML(html)
+                const sources = await parseIndexHTML(html)
+                const sourceMaps = await findSourceMaps(sources)
+                console.log("All Done!")
+                console.log(`Source maps
+                ${JSON.stringify(sourceMaps)}`)
+                process.exit(0)
 
             } catch (e) {
-                console.error("Error please provide a valid url to inspect")
+                console.error(e)
                 process.exit(1)
             }
 
@@ -51,17 +62,33 @@ for (const [index, cmd] of args.entries()) {
 }
 
 async function inspect(url) {
-    log(`Fetching html from ${url}`)
     try {
-        const response = await fetch(url)
-        const result = await response.text()
-        if(!response.ok) throw new Error(`Error fetching html from url ${url} with response ${result}`)
-        log("Successfully fetched html")
-        return result
+        let curlOptions = ""
+        for(let x of args.slice(1, -1)){
+            curlOptions += `"${x}"` + " "
+        }
+        console.log(`printing curl options ${curlOptions}`)
+        const curlCommand = `curl -s ${curlOptions} ${url}`
+        console.log('Executing:', curlCommand)
+        
+        const {stdout, stderr} = await execPromise(curlCommand)
+        
+        if (stderr) {
+            console.warn('Curl stderr:', stderr)
+        }
+        if (stdout) {
+            console.log('curl successful')
+        }
+        return stdout
+        
     } catch (e) {
-        console.error(e)
+        console.error('❌ Curl execution failed:')
+        console.error('Error message:', e.message)
+        console.error('Error code:', e.code)
+        console.error('Command attempted:', `curl -s ${curlOptions}"${url}"`)
         process.exit(1)
     }
+    
 }
 
 async function parseIndexHTML(html) {
@@ -97,11 +124,34 @@ async function parseIndexHTML(html) {
 
         Here are the discovered assets:`)
         console.log(sources)
-        process.exit(0)
+        return sources
     }
     catch (e) {
         console.error(e)
         process.exit(1)
     }
+    
 
+}
+
+async function findSourceMaps(sources) {
+    const sourceMaps = [];
+    log("Parsing assets for sourcemaps")
+    for (const asset of [...sources.js, ...sources.css]) {
+        try{
+            const url = new URL(asset, BASE_URL)
+            const res = await fetch(url)
+            if(!res.ok) throw new Error("Error fetching asset")
+            const result = await res.text()
+            if(result.includes("sourceMappingURL=")) {
+                console.log(`Found Source Map at ${asset}`)
+                sourceMaps.push(`${BASE_URL}${asset}.map`)
+            }
+        }
+        catch(e){
+            console.error("Error was", e)
+            process.exit(1)
+        }        
+    }
+    return sourceMaps
 }
