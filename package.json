@@ -1,0 +1,18 @@
+{
+  "name": "sourcemap-builder",
+  "version": "1.0.0",
+  "description": "Re creates Front ends from sourcemaps",
+  "license": "ISC",
+  "author": "Michael Medvedev",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "bin": {
+    "sourcemap": "./cli.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.1.2"
+  }
+}
