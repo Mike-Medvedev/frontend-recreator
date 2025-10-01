@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
 import * as cheerio from "cheerio"
-
+import fs from "fs"
 var args = process.argv.slice(2)
+
+function log(msg) {
+    console.log(msg + "...")
+}
 
 // Okay first thing i want to do is when i run the command i want to display a list of options of commands
 //I want to support help command
@@ -13,7 +17,7 @@ if (args.length === 0) {
     process.exit(1)
 }
 
-for(const [index, cmd] of args.entries()){
+for (const [index, cmd] of args.entries()) {
     switch (cmd) {
         case "--help":
             console.log(`Usage: sourcemap [command] [options...]
@@ -27,13 +31,13 @@ for(const [index, cmd] of args.entries()){
         case "inspect":
             let url;
             let html;
-            try{
+            try {
                 url = URL.parse(args[index + 1])
-                if(!url) throw Error()
+                if (!url) throw Error()
                 html = await inspect(url)
                 parseIndexHTML(html)
 
-            } catch(e){
+            } catch (e) {
                 console.error("Error please provide a valid url to inspect")
                 process.exit(1)
             }
@@ -47,26 +51,57 @@ for(const [index, cmd] of args.entries()){
 }
 
 async function inspect(url) {
+    log(`Fetching html from ${url}`)
     try {
         const response = await fetch(url)
         const result = await response.text()
+        if(!response.ok) throw new Error(`Error fetching html from url ${url} with response ${result}`)
+        log("Successfully fetched html")
         return result
     } catch (e) {
-        console.error("Error fetching url", e)
+        console.error(e)
         process.exit(1)
     }
 }
 
-async function parseIndexHTML(html){
-    const $ = cheerio.load(html);
-    console.log($.html())
-    // console.log($('script[src]'))
-    if ($('script[src]').length > 0) {
-        console.log('Found div with src')
-        console.log('Content:', $('script[src]').attr().src)
-    } else {
-        console.log('No script with src found')
+async function parseIndexHTML(html) {
+    try {
+        let sources = { js: [], css: [] }
+        log("Parsing html and looking for static assests")
+        const $ = cheerio.load(html);
+        // fs.writeFileSync("react.html", $.html())
+        if ($('script[src]').length > 0) {
+            for (const x of $('script[src]')) {
+                const asset = x.attribs.src
+                if (asset.endsWith(".js")) {
+                    sources.js.push(asset)
+                    console.log("Found Js asset: " + asset)
+                }
+            }
+        } else {
+            console.log('No script with src found')
+        }
+        if ($('link[href]').length > 0) {
+            for (let x of $('link[href]')) {
+                const asset = x.attribs.href
+                if (asset.endsWith(".css")) {
+                    sources.css.push(asset)
+                    console.log("Found css asset: " + asset)
+                }
+            }
+        }
+        else {
+            console.log("No css assets found")
+        }
+        console.log(`Completed Parsing website!
+
+        Here are the discovered assets:`)
+        console.log(sources)
+        process.exit(0)
     }
-    // console.log($('id').text())
-    // console.log($.html())
+    catch (e) {
+        console.error(e)
+        process.exit(1)
+    }
+
 }
