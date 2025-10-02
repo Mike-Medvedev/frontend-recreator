@@ -101,6 +101,7 @@ temp1/
 
 ### Actual Output Code Structure
 ![Reforger Generated Code Output](assets/reforge-code.png)
+
 *An example of the recreated frontend code structure in the output directory.*
 
 ### Terminal Logs and Sourcemap Discovery
@@ -127,7 +128,8 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 
 ## ⚠️ Disclaimer
 
-This tool is for educational and legitimate reverse engineering purposes only. Please respect website terms of service and only use on websites you own or have permission to analyze.
+This tool is for educational and legitmate learning purposes. Please respect other peoples websites and
+ABSOLUTELY do not re upload code as your own
 
 ## 🐛 Issues
 
