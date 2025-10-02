@@ -8,6 +8,7 @@ import chalk from 'chalk';
 import path from "path"
 var args = process.argv.slice(2)
 var BASE_URL = args[args.length - 1];
+var outputPath; 
 
 const log = console.log
 const error = chalk.bold.red;
@@ -18,6 +19,12 @@ const execPromise = promisify(exec)
 if (args.length === 0) {
     console.error("try 'sourcemap --help' for more information")
     process.exit(1)
+}
+
+if(args.includes("-o") || args.includes("--output")){
+    const flagIndex = args.findIndex(arg => arg === "-o" || arg === "--output")
+    outputPath = args[flagIndex + 1]
+    args.splice(flagIndex, 2)
 }
 
 for (const cmd of args) {
@@ -63,7 +70,7 @@ async function executeCurlCommand(url) {
             curlOptions += `"${x}"` + " "
         }
         const curlCommand = `curl -s ${curlOptions}${url}`
-        log(chalk.blue.bold("\n" + '⏳ '+ 'Executing:', curlCommand))
+        log(chalk.blue.bold("\n" + '⏳ ' + 'Executing:', curlCommand))
 
         const { stdout, stderr } = await execPromise(curlCommand)
 
@@ -76,7 +83,7 @@ async function executeCurlCommand(url) {
         return stdout
 
     } catch (e) {
-        console.log(error('🛑' + '\n Curl execution failed: \n '))
+        console.log(error('\n 🛑 Curl execution failed: \n '))
         console.error('Error message:', e.message)
         console.error('Error code:', e.code)
         console.error('Command attempted:', `curl -s ${curlOptions}"${url}"`)
@@ -88,7 +95,7 @@ async function executeCurlCommand(url) {
 async function parseIndexHTML(html) {
     try {
         let sources = { js: [], css: [] }
-        log(chalk.blue.bold("\n" + '⏳ '+ "Parsing html and looking for static assests"))
+        log(chalk.blue.bold("\n" + '⏳ ' + "Parsing html and looking for static assests"))
         const $ = cheerio.load(html);
         if ($('script[src]').length > 0) {
             for (const x of $('script[src]')) {
@@ -126,7 +133,7 @@ async function parseIndexHTML(html) {
 
 async function findSourceMaps(sources) {
     const sourceMapUrls = [];
-    log(chalk.blue.bold("\n" + '⏳ '+ "Parsing assets for sourcemaps"))
+    log(chalk.blue.bold("\n" + '⏳ ' + "Parsing assets for sourcemaps"))
     for (const asset of [...sources.js, ...sources.css]) {
         try {
             const url = new URL(asset, BASE_URL)
@@ -147,18 +154,24 @@ async function findSourceMaps(sources) {
 
 
 function displayMenu() {
-    console.log(`Usage: sourcemap [command] [options...]
+    console.log(chalk.bold.cyan(`\n 📋 Sourcemap Builder CLI\n`))
+    console.log(chalk.yellow(` Usage: `) + chalk.white(`sourcemap [command] [options...]\n`))
     
-        Commands:
-
-            inspect [curl-options...] <url> Inspects a url for sourcemaps using curl
-            generate [curl-options...] <url> Recreates frontend code of a url if Sourcemaps are found
-        
-        Examples:
-
-            Example sourcemap generate -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." https://example.com
-            
-            `)
+    console.log(chalk.bold.green(` Commands:\n`))
+    
+    console.log(chalk.blue(`   inspect `) + chalk.gray(`[curl-options...] `) + chalk.white(`<url>`))
+    console.log(chalk.gray(`           Inspects a url for sourcemaps using curl\n`))
+    
+    console.log(chalk.blue(`   generate `) + chalk.gray(`[curl-options...] `) + chalk.white(`<url>`))
+    console.log(chalk.gray(`           Recreates frontend code of a url if Sourcemaps are found\n`))
+    
+    console.log(chalk.bold.magenta(` Options:\n`))
+    console.log(chalk.green(`   -o, --output `) + chalk.white(`<path>`) + chalk.gray(`  Specify a filepath to output generated code, defaults to ./temp1\n`))
+    
+    console.log(chalk.bold.yellow(` Examples:\n`))
+    console.log(chalk.gray(`   `) + chalk.blue(`sourcemap generate `) + chalk.green(`-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." `) + chalk.white(`https://example.com`))
+    console.log(chalk.gray(`   `) + chalk.blue(`sourcemap inspect `) + chalk.green(`--cookie "session=abc123" `) + chalk.white(`https://example.com`))
+    console.log(chalk.gray(`   `) + chalk.blue(`sourcemap generate `) + chalk.green(`-o ./my-output `) + chalk.white(`https://example.com\n`))
 }
 
 async function generateClient() {
@@ -190,9 +203,9 @@ async function fetchSourceMap(sourceMapURLs) {
         const js = await jsData.json()
         const css = await cssData.json()
         log(chalk.greenBright.bold("✅ Source Content Successfully retrieved! \n"))
-        return { js,css }
+        return { js, css }
     } catch (e) {
-        if(e instanceof SyntaxError){
+        if (e instanceof SyntaxError) {
             log(error("\n Map Urls did not return json, its possible that you need to authenticate to retrieve this map url \n"), e)
         }
         else console.error("Error fetching sourcemaps:", e.message)
@@ -209,19 +222,24 @@ function generateDirectory(source, index, sourcesContent) {
     let cleanedSource = cleanPath(source)
     let directory = path.dirname(cleanedSource)
     let file = path.basename(cleanedSource)
-    mkdirSync(path.join("temp1", directory), { recursive: true })
-    writeFileSync(path.join("temp1", directory, file), sourcesContent[index] ?? "null")
+    mkdirSync(path.join(outputPath || "temp1", directory), { recursive: true })
+    writeFileSync(path.join(outputPath || "temp1", directory, file), sourcesContent[index] ?? "null")
 }
 
 function generateCode(sourceMap) {
     log(chalk.blue.bold("⏳ Generating Code"))
-    const jsMap = sourceMap.js
-    const jsCode = jsMap.sourcesContent
-    const cssMap = sourceMap.css
-    const cssCode = cssMap.sourcesContent
-
-
-    jsMap.sources.forEach((source, index) => generateDirectory(source, index, jsCode))
-    cssMap.sources.forEach((source, index) => generateDirectory(source, index, cssCode))
+    try {
+        const jsMap = sourceMap.js
+        const jsCode = jsMap.sourcesContent
+        const cssMap = sourceMap.css
+        const cssCode = cssMap.sourcesContent
+        if(!outputPath) log(warning("⚠️ Output directory not specified with -o, defaulting to temp1 in current dir"))
+        jsMap.sources.forEach((source, index) => generateDirectory(source, index, jsCode))
+        cssMap.sources.forEach((source, index) => generateDirectory(source, index, cssCode))
+        log(chalk.greenBright.bold(`✅ Recreated Frontend Code to ${outputPath}`))
+    } catch(e){
+        console.log(error(e))
+    }
+    
 
 }
