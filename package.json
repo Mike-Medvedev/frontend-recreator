@@ -6,9 +6,7 @@
   "author": "Michael Medvedev",
   "type": "module",
   "main": "cli.js",
-  "scripts": {
-    "test": "npm test"
-  },
+  "scripts": {},
   "bin": {
     "reforge": "./cli.js"
   },
