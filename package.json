@@ -1,7 +1,7 @@
 {
-  "name": "sourcemap-builder",
+  "name": "Reforger",
   "version": "1.0.0",
-  "description": "Re creates Front ends from sourcemaps",
+  "description": "Re creates Frontend from sourcemaps",
   "license": "ISC",
   "author": "Michael Medvedev",
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "npm test"
   },
   "bin": {
-    "sourcemap": "./cli.js"
+    "reforge": "./cli.js"
   },
   "dependencies": {
     "chalk": "^5.6.2",

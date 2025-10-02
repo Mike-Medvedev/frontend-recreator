@@ -6,6 +6,9 @@ import { promisify } from "util"
 import { mkdirSync, writeFileSync } from "fs"
 import chalk from 'chalk';
 import path from "path"
+
+
+
 var args = process.argv.slice(2)
 var BASE_URL = args[args.length - 1];
 var outputPath; 
@@ -16,10 +19,12 @@ const warning = chalk.yellow
 
 const execPromise = promisify(exec)
 
+
 if (args.length === 0) {
-    console.error("try 'sourcemap --help' for more information")
-    process.exit(1)
+    displayMenu()
+    process.exit(0)
 }
+
 
 if(args.includes("-o") || args.includes("--output")){
     const flagIndex = args.findIndex(arg => arg === "-o" || arg === "--output")
@@ -27,29 +32,56 @@ if(args.includes("-o") || args.includes("--output")){
     args.splice(flagIndex, 2)
 }
 
-for (const cmd of args) {
-    switch (cmd) {
-        case "--help":
-            displayMenu()
-            break;
-        case "inspect":
-            await findMaps()
-            process.exit(0)
-        case "generate":
-            await generateClient()
-            process.exit(0)
-        default:
-            console.error("Invalid command: try 'sourcemap --help' for more information")
-            process.exit(1)
+if (args.includes("--help") || args.length === 0) {
+    displayMenu()
+    process.exit(0)
+}
 
-    }
+const command = args.find(arg => !arg.startsWith("-") && !arg.startsWith("http") && !arg.startsWith("www"))
+
+if (!command) {
+    console.error(chalk.red("❌ No command specified"))
+    console.log(chalk.yellow("Try: ") + chalk.blue("reforge --help"))
+    process.exit(1)
+}
+
+const validCommands = ["inspect", "generate"]
+const suggestions = findClosestCommand(command, validCommands)
+
+if (suggestions.length > 0) {
+    console.error(chalk.red(`❌ Unknown command: "${command}"`))
+    console.log(chalk.yellow("Did you mean: ") + chalk.blue(`reforge ${suggestions[0]}`))
+    process.exit(1)
+}
+
+switch (command) {
+    case "inspect":
+        await findMaps()
+        process.exit(0)
+    case "generate":
+        await generateClient()
+        process.exit(0)
+    default:
+        console.error(chalk.red(`❌ Unknown command: "${command}"`))
+        console.log(chalk.yellow("Available commands: ") + chalk.blue("inspect, generate"))
+        console.log(chalk.yellow("Try: ") + chalk.blue("reforge --help"))
+        process.exit(1)
 }
 
 async function findMaps() {
     let html, url;
     try {
-        url = URL.parse(args[args.length - 1])
-        if (!url) throw Error("ERROR PARSING URL")
+        const urlArg = args.find(arg => arg.startsWith("http") || arg.startsWith("www"))
+        
+        if (!urlArg) {
+            console.error(chalk.red("❌ No valid URL provided"))
+            console.log(chalk.yellow("Usage: ") + chalk.blue("reforge inspect [options...] <url>"))
+            console.log(chalk.yellow("Example: ") + chalk.blue("reforge inspect https://example.com"))
+            process.exit(1)
+        }
+        
+        url = URL.parse(urlArg)
+        if (!url || !url.hostname) throw Error("ERROR PARSING URL")
         html = await executeCurlCommand(url)
         const sources = await parseIndexHTML(html)
         const sourceMapUrls = await findSourceMaps(sources)
@@ -153,9 +185,60 @@ async function findSourceMaps(sources) {
 }
 
 
+function findClosestCommand(input, validCommands) {
+    const suggestions = []
+    const inputLower = input.toLowerCase()
+    
+    for (const cmd of validCommands) {
+        if (cmd.toLowerCase() === inputLower) {
+            return []
+        }
+        
+        if (cmd.toLowerCase().startsWith(inputLower)) {
+            suggestions.push(cmd)
+        }
+        else if (cmd.toLowerCase().includes(inputLower)) {
+            suggestions.push(cmd)
+        }
+        else if (levenshteinDistance(inputLower, cmd.toLowerCase()) <= 2) {
+            suggestions.push(cmd)
+        }
+    }
+    
+    return suggestions
+}
+
+function levenshteinDistance(str1, str2) {
+    const matrix = []
+    
+    for (let i = 0; i <= str2.length; i++) {
+        matrix[i] = [i]
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+        matrix[0][j] = j
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+        for (let j = 1; j <= str1.length; j++) {
+            if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1]
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                )
+            }
+        }
+    }
+    
+    return matrix[str2.length][str1.length]
+}
+
 function displayMenu() {
-    console.log(chalk.bold.cyan(`\n 📋 Sourcemap Builder CLI\n`))
-    console.log(chalk.yellow(` Usage: `) + chalk.white(`sourcemap [command] [options...]\n`))
+    console.log(chalk.bold.cyan(`\n 🌋 Reforger CLI\n`))
+    console.log(chalk.yellow(` Usage: `) + chalk.white(`reforge [command] [options...]\n`))
     
     console.log(chalk.bold.green(` Commands:\n`))
     
@@ -169,9 +252,9 @@ function displayMenu() {
     console.log(chalk.green(`   -o, --output `) + chalk.white(`<path>`) + chalk.gray(`  Specify a filepath to output generated code, defaults to ./temp1\n`))
     
     console.log(chalk.bold.yellow(` Examples:\n`))
-    console.log(chalk.gray(`   `) + chalk.blue(`sourcemap generate `) + chalk.green(`-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." `) + chalk.white(`https://example.com`))
-    console.log(chalk.gray(`   `) + chalk.blue(`sourcemap inspect `) + chalk.green(`--cookie "session=abc123" `) + chalk.white(`https://example.com`))
-    console.log(chalk.gray(`   `) + chalk.blue(`sourcemap generate `) + chalk.green(`-o ./my-output `) + chalk.white(`https://example.com\n`))
+    console.log(chalk.gray(`   `) + chalk.blue(`reforge generate `) + chalk.green(`-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." `) + chalk.white(`https://example.com`))
+    console.log(chalk.gray(`   `) + chalk.blue(`reforge inspect `) + chalk.green(`--cookie "session=abc123" `) + chalk.white(`https://example.com`))
+    console.log(chalk.gray(`   `) + chalk.blue(`reforge generate `) + chalk.green(`-o ./my-output `) + chalk.white(`https://example.com\n`))
 }
 
 async function generateClient() {
