@@ -5,7 +5,9 @@
 [![npm version](https://badge.fury.io/js/reforger.svg)](https://badge.fury.io/js/reforger)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
-A powerful CLI tool that inspects websites for sourcemaps and recreates the original frontend source code, making reverse engineering and code analysis easier.
+A powerful CLI tool that recreates frontend codebases given a website url
+
+Generate the codebase of your favourite website in seconds!
 
 ## ✨ Features
 
@@ -13,8 +15,6 @@ A powerful CLI tool that inspects websites for sourcemaps and recreates the orig
 - ⚡ **Generate** original source code from sourcemaps
 - 🍪 **Cookie support** for authenticated requests
 - 🎨 **Beautiful CLI** with colors and emojis
-- 🧠 **Smart typo detection** with suggestions
-- 📁 **Custom output directories**
 - 🔧 **Flexible curl options** support
 
 ## 🚀 Installation
@@ -60,7 +60,7 @@ reforge generate --cookie "session=abc123" -o ./extracted https://example.com
 Inspects a URL for sourcemaps using curl.
 
 ```bash
-reforge inspect [options...] <url>
+reforge inspect [curl-options...] <url>
 ```
 
 **Options:**
@@ -72,7 +72,7 @@ reforge inspect [options...] <url>
 Recreates frontend code from sourcemaps.
 
 ```bash
-reforge generate [options...] <url>
+reforge generate [curl-options...] <url>
 ```
 
 **Options:**
@@ -96,6 +96,16 @@ temp1/
 └── node_modules/
     └── ...
 ```
+
+## 📸 Screenshots
+
+### Actual Output Code Structure
+![Reforger Generated Code Output](assets/reforge-code.png)
+*An example of the recreated frontend code structure in the output directory.*
+
+### Terminal Logs and Sourcemap Discovery
+![Reforger CLI Terminal Output](assets/reforge-sc.png)
+*A screenshot showing the Reforger CLI in action, displaying discovered sourcemaps and terminal logs.*
 
 ## 🔧 Requirements
 
