@@ -173,7 +173,7 @@ async function findSourceMaps(sources) {
             if (!res.ok) throw new Error("Error fetching asset")
             const result = await res.text()
             if (result.includes("sourceMappingURL=")) {
-                sourceMapUrls.push(`${BASE_URL}${asset}.map`)
+                sourceMapUrls.push(`${url.href}.map`)
             }
         }
         catch (e) {
