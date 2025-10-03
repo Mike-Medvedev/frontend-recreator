@@ -11,11 +11,7 @@ Generate the codebase of your favourite website in seconds!
 
 ## 🎥 Demo
 
-<video width="630" height="40
-
 https://github.com/user-attachments/assets/6e90c1cd-38ae-4ca6-a678-64945014f890
-
-0" src="assets/reforger-demo-compressed.mp4"></video>
 
 *Watch Reforger in action - extracting sourcemaps and generating frontend code!*
 
