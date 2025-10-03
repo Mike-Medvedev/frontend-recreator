@@ -9,6 +9,12 @@ A powerful CLI tool that recreates frontend codebases given a website url
 
 Generate the codebase of your favourite website in seconds!
 
+## 🎥 Demo
+
+![Reforger Demo](assets/reforger-demo.mp4)
+
+*Watch Reforger in action - extracting sourcemaps and generating frontend code!*
+
 ## ✨ Features
 
 - 🔍 **Inspect** websites for sourcemaps
