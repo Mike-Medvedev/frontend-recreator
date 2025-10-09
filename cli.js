@@ -260,8 +260,8 @@ function displayMenu() {
 async function generateClient() {
     const sourceMapURLs = await findMaps();
     if (sourceMapURLs.length === 0) return
-    const sourceMap = await fetchSourceMap(sourceMapURLs)
-    generateCode(sourceMap)
+    const sourceMaps = await fetchSourceMaps(sourceMapURLs)
+    generateCode(sourceMaps)
 }
 
 
@@ -278,15 +278,15 @@ async function generateClient() {
     'debug_id'
   ]
  */
-async function fetchSourceMap(sourceMapURLs) {
+async function fetchSourceMaps(sourceMapURLs) {
     log(chalk.blue.bold("⏳ Fetching Source Map Content"))
     try {
         const promises = sourceMapURLs.map(url => fetch(url))
-        const [jsData, cssData] = await Promise.all(promises)
-        const js = await jsData.json()
-        const css = await cssData.json()
+        const responses = await Promise.all(promises)
+        const sourceMaps = await Promise.all(responses.map(res => res.json()))
+
         log(chalk.greenBright.bold("✅ Source Content Successfully retrieved! \n"))
-        return { js, css }
+        return sourceMaps
     } catch (e) {
         if (e instanceof SyntaxError) {
             log(error("\n Map Urls did not return json, its possible that you need to authenticate to retrieve this map url \n"), e)
@@ -309,17 +309,14 @@ function generateDirectory(source, index, sourcesContent) {
     writeFileSync(path.join(outputPath || "temp1", directory, file), sourcesContent[index] ?? "null")
 }
 
-function generateCode(sourceMap) {
+function generateCode(sourceMaps) {
     log(chalk.blue.bold("⏳ Generating Code"))
     try {
-        const jsMap = sourceMap.js
-        const jsCode = jsMap.sourcesContent
-        const cssMap = sourceMap.css
-        const cssCode = cssMap.sourcesContent
         if(!outputPath) log(warning("⚠️ Output directory not specified with -o, defaulting to temp1 in current dir"))
-        jsMap.sources.forEach((source, index) => generateDirectory(source, index, jsCode))
-        cssMap.sources.forEach((source, index) => generateDirectory(source, index, cssCode))
-        log(chalk.greenBright.bold(`✅ Recreated Frontend Code to ${outputPath}`))
+        for(let sourceMap of sourceMaps){
+            sourceMap.sources.forEach((source, index) => generateDirectory(source, index, sourceMap.sourcesContent))
+        }
+        log(chalk.greenBright.bold(`✅ Recreated Frontend Code to ${outputPath || "temp1"}`))
     } catch(e){
         console.log(error(e))
     }
